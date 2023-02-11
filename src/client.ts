@@ -1,7 +1,7 @@
 import { SQLGatewayTransaction } from "./transaction";
-import fetch from 'isomorphic-fetch';
+import fetch from 'cross-fetch';
 import { ExecResponse, QueryResponse } from "./query";
-import { QueryError } from "./errors";
+import { HighStatusCode, QueryError } from "./errors";
 
 export interface SQLGatewayClientConfig {
   url: string
@@ -34,8 +34,11 @@ export class SQLGatewayClient {
     this.url = config.url
   }
 
+  /**
+   * Requests the `/hc` endpoint on a SQLGateway node
+   */
   async Ping() {
-    // health check a sqlgateway pod
+    await this.makeRequest("/hc", "GET", {})
   }
 
   async Query(statement: string | string[], params: any[] | any[][]): Promise<QueryResponse | QueryResponse[]> {
@@ -105,15 +108,22 @@ export class SQLGatewayClient {
   /**
    * @param headers Overwrites pre-made headers
    */
-  async makeRequest(endpoint: string, method: string, headers: { [key: string]: string }, body: any) {
-    return fetch(this.url+endpoint, {
+  async makeRequest(endpoint: string, method: string, headers: { [key: string]: string }, body?: any) {
+    const hdrs = {
+      "content-type": "application/json",
+      ...headers
+    } as Record<string, string>
+    if (this.username && this.password) {
+      hdrs["Authorization"] = Buffer.from(`${this.username}:${this.password}`).toString("base64")
+    }
+    const res = await fetch(this.url+endpoint, {
       method: method,
-      headers: {
-        "content-type": "application/json",
-        "Authorization": this.username && this.password ? Buffer.from(`${this.username}:${this.password}`).toString("base64") : undefined,
-        ...headers
-      },
-      body: JSON.stringify(body)
+      headers: hdrs,
+      body: method === "GET" ? undefined : JSON.stringify(body)
     })
+    if (res.status >= 300) {
+      throw new HighStatusCode(await res.text(), res.status)
+    }
+    return res
   }
 }
