@@ -13,3 +13,9 @@ export class HighStatusCode extends Error {
     this.code = errorCode
   }
 }
+
+export class TxEnded extends Error {
+  constructor() {
+    super("Transaction ended")
+  }
+}
