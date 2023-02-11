@@ -8,7 +8,7 @@ export class HighStatusCode extends Error {
   code: number
   response: string
   constructor (message: string, errorCode: number) {
-    super(`High status code (${errorCode}): ${message}`)
+    super(`high status code (${errorCode}): ${message}`)
     this.response = message
     this.code = errorCode
   }
@@ -16,6 +16,12 @@ export class HighStatusCode extends Error {
 
 export class TxEnded extends Error {
   constructor() {
-    super("Transaction ended")
+    super("transaction ended")
+  }
+}
+
+export class TxNotFound extends Error {
+  constructor() {
+    super("transaction not found, did it timeout?")
   }
 }

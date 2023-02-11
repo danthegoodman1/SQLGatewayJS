@@ -1,5 +1,5 @@
 import { SQLGatewayClient } from "./client"
-import { QueryError, TxEnded } from "./errors"
+import { HighStatusCode, QueryError, TxEnded, TxNotFound } from "./errors"
 
 export interface SQLGatewayTransactionConfig {
   client: SQLGatewayClient
@@ -42,6 +42,9 @@ export class SQLGatewayTransaction {
       })
       return res
     } catch (error) {
+      if (error instanceof HighStatusCode && error.code === 404) {
+        throw new TxNotFound()
+      }
       if (error instanceof QueryError) {
         this.ended = true
       }
@@ -62,6 +65,9 @@ export class SQLGatewayTransaction {
         TimeNano: Array.isArray(queryRes) ? queryRes[0].TimeNano : queryRes.TimeNano
       }
     } catch (error) {
+      if (error instanceof HighStatusCode && error.code === 404) {
+        throw new TxNotFound()
+      }
       if (error instanceof QueryError) {
         this.ended = true
       }
