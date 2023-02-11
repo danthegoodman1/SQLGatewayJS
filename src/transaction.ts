@@ -79,19 +79,33 @@ export class SQLGatewayTransaction {
     if (this.ended) {
       throw new TxEnded()
     }
-    await this.client.makeRequest("/commit", "POST", {}, {
-      TxID: this.transactionID
-    })
-    this.ended = true
+    try {
+      await this.client.makeRequest("/commit", "POST", {}, {
+        TxID: this.transactionID
+      })
+      this.ended = true
+    } catch (error) {
+      if (error instanceof HighStatusCode && error.code === 404) {
+        throw new TxNotFound()
+      }
+      throw error
+    }
   }
 
   async Rollback() {
     if (this.ended) {
       throw new TxEnded()
     }
-    await this.client.makeRequest("/rollback", "POST", {}, {
-      TxID: this.transactionID
-    })
-    this.ended = true
+    try {
+      await this.client.makeRequest("/rollback", "POST", {}, {
+        TxID: this.transactionID
+      })
+      this.ended = true
+    } catch (error) {
+      if (error instanceof HighStatusCode && error.code === 404) {
+        throw new TxNotFound()
+      }
+      throw error
+    }
   }
 }
