@@ -23,7 +23,7 @@ export class SQLGatewayTransaction {
       // No-op
       return
     }
-    const res = await this.client.makeRequest("/begin", "POST", {}, {
+    const res = await this.client.makeRequest("/psql/begin", "POST", {}, {
       TxTimeoutSec: this.timeoutSeconds
     })
     const resBody = await res.json() as {
@@ -32,7 +32,7 @@ export class SQLGatewayTransaction {
     this.transactionID = resBody.TxID
   }
 
-  async Query(statement: string | string[], params: any[] | any[][]) {
+  async Query(statement: string | string[], params?: any[] | any[][]) {
     if (this.ended) {
       throw new TxEnded()
     }
@@ -80,7 +80,7 @@ export class SQLGatewayTransaction {
       throw new TxEnded()
     }
     try {
-      await this.client.makeRequest("/commit", "POST", {}, {
+      await this.client.makeRequest("/psql/commit", "POST", {}, {
         TxID: this.transactionID
       })
       this.ended = true
@@ -97,7 +97,7 @@ export class SQLGatewayTransaction {
       throw new TxEnded()
     }
     try {
-      await this.client.makeRequest("/rollback", "POST", {}, {
+      await this.client.makeRequest("/psql/rollback", "POST", {}, {
         TxID: this.transactionID
       })
       this.ended = true

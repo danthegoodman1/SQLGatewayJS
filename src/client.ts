@@ -10,19 +10,23 @@ export interface SQLGatewayClientConfig {
 }
 
 interface queryReq {
-  Statement: string
-  Params: any[]
-  IgnoreCache?: boolean
-  ForceCache?: boolean
-  Exec?: boolean
-  TxKey?: string
+  Queries: {
+    Statement: string
+    Params?: any[]
+    IgnoreCache?: boolean
+    ForceCache?: boolean
+    Exec?: boolean
+  }[]
+  TxID?: string
 }
 
 interface queryRes {
-  Columns: any[][]
-  Rows: any[][]
-  Error?: string
-  TimeNS?: number
+  Queries: {
+    Columns: any[]
+    Rows: any[][]
+    Error?: string
+    TimeNS?: number
+  }[]
 }
 
 export class SQLGatewayClient {
@@ -41,48 +45,54 @@ export class SQLGatewayClient {
     await this.makeRequest("/hc", "GET", {})
   }
 
-  async Query(statement: string | string[], params: any[] | any[][]): Promise<QueryResponse | QueryResponse[]> {
+  async Query(statement: string | string[], params?: any[] | any[][]): Promise<QueryResponse | QueryResponse[]> {
     return this.query(statement, params)
   }
 
-  async query(statement: string | string[], params: any[] | any[][], opts?: {exec?: boolean, txKey?: string}): Promise<QueryResponse | QueryResponse[]> {
-    const reqBody: queryReq[] = []
+  async query(statement: string | string[], params?: any[] | any[][], opts?: {exec?: boolean, txKey?: string}): Promise<QueryResponse | QueryResponse[]> {
+    const reqBody: queryReq = {
+      Queries: [],
+      TxID: opts?.txKey
+    }
     const singleStatement = typeof statement === 'string'
     if (singleStatement) {
       // Single query
-      reqBody.push({
+      reqBody.Queries.push({
         Params: params as any[],
         Statement: statement,
       })
     } else {
       // Array
       for (let i = 0; i < statement.length; i++) {
-        reqBody.push({
+        reqBody.Queries.push({
           Statement: statement[i],
-          Params: params[i]
+          Params: params ? params[i] : undefined,
         })
       }
     }
 
-    const res = await this.makeRequest("/query", "POST", {}, reqBody)
+    const res = await this.makeRequest("/psql/query", "POST", {}, reqBody)
     const resBody = await res.json() as queryRes
-    if (resBody.Error) {
-      throw new QueryError(resBody.Error)
-    }
 
     if (singleStatement) {
+      if (resBody.Queries[0].Error) {
+        throw new QueryError(resBody.Queries[0].Error, statement)
+      }
       return {
-        Columns: resBody.Columns[0],
-        Rows: resBody.Columns[0],
-        TimeNano: resBody.TimeNS
+        Columns: resBody.Queries[0].Columns,
+        Rows: resBody.Queries[0].Rows,
+        TimeNano: resBody.Queries[0].TimeNS
       } as QueryResponse
     }
     const qr: QueryResponse[] = []
-    for (let i = 0; i < resBody.Columns.length; i++) {
+    for (let i = 0; i < resBody.Queries.length; i++) {
+      if (resBody.Queries[i].Error) {
+        throw new QueryError(resBody.Queries[i].Error!, statement[i])
+      }
       qr.push({
-        Columns: resBody.Columns[i],
-        Rows: resBody.Rows[i],
-        TimeNano: resBody.TimeNS
+        Columns: resBody.Queries[i].Columns,
+        Rows: resBody.Queries[i].Rows,
+        TimeNano: resBody.Queries[i].TimeNS
       })
     }
     return qr

@@ -1,5 +1,5 @@
 export class QueryError extends Error {
-  constructor (message: string) {
+  constructor (message: string, query: string) {
     super(message)
   }
 }
